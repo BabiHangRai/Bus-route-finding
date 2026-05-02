@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login – KTM Bus Finder</title>
+  <link rel="stylesheet" href="/css/style.css"/>
+</head>
+<body>
+<nav>
+  <a class="nav-brand" href="/">🚌 KTM Routes</a>
+  <div class="nav-links">
+    <a href="/search">Find Route</a>
+    <a href="/all-routes">All Routes</a>
+    <a href="/login" class="active">Login</a>
+  </div>
+</nav>
+
+<div class="auth-page">
+  <div class="auth-card">
+    <h2>Welcome Back 👋</h2>
+    <p>Login to save and manage your routes</p>
+    <div id="msgBox" class="error-msg"></div>
+
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="email" placeholder="your@email.com"/>
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="password" placeholder="••••••••"/>
+    </div>
+    <button class="btn btn-primary" onclick="doLogin()">Login</button>
+    <p style="text-align:center; margin-top:1.2rem; font-size:0.9rem; color:var(--muted);">
+      Don't have an account? <a href="/register" style="color:var(--primary);">Register here</a>
+    </p>
+  </div>
+</div>
+
+<script src="/js/main.js"></script>
+<script>
+async function doLogin() {
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
+  if (!email || !password) return showMsg('msgBox', 'Please fill all fields');
+
+  const res = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  });
+  const data = await res.json();
+  if (data.success) {
+    window.location.href = data.isAdmin ? '/admin' : '/dashboard';
+  } else {
+    showMsg('msgBox', data.error);
+  }
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+</script>
+</body>
+</html>

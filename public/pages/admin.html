@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Panel – KTM Bus Finder</title>
+  <link rel="stylesheet" href="/css/style.css"/>
+</head>
+<body>
+<nav>
+  <a class="nav-brand" href="/">🚌 KTM Routes</a>
+  <div class="nav-links">
+    <a href="/search">Find Route</a>
+    <a href="/all-routes">All Routes</a>
+    <a href="/admin" class="active" id="nav-admin">Admin</a>
+    <a href="#" onclick="logout()" id="nav-logout">Logout</a>
+    <span id="nav-user"></span>
+  </div>
+</nav>
+
+<div class="container">
+  <h1 class="page-title">⚙️ Admin Panel</h1>
+  <p class="page-sub">Manage bus stops and routes</p>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="showTab('stops', this)">🚏 Manage Stops</button>
+    <button class="tab-btn" onclick="showTab('routes', this)">🚌 Manage Routes</button>
+  </div>
+
+  <!-- STOPS TAB -->
+  <div id="tab-stops" class="tab-content active">
+    <div class="card">
+      <h3 style="margin-bottom:1.2rem;">Add New Stop</h3>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
+        <div class="form-group" style="margin:0;">
+          <label>Stop Name</label>
+          <input type="text" id="stopName" placeholder="e.g. Bouddha"/>
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label>Zone</label>
+          <select id="stopZone">
+            <option value="central">Central</option>
+            <option value="east">East</option>
+            <option value="west">West</option>
+            <option value="north">North</option>
+            <option value="south">South</option>
+          </select>
+        </div>
+      </div>
+      <div id="stopMsg" class="success-msg"></div>
+      <button class="btn btn-primary" style="width:auto;" onclick="addStop()">+ Add Stop</button>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:1rem;">All Stops</h3>
+      <table class="data-table" id="stopsTable">
+        <thead><tr><th>Name</th><th>Zone</th><th>Action</th></tr></thead>
+        <tbody id="stopsTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ROUTES TAB -->
+  <div id="tab-routes" class="tab-content">
+    <div class="card">
+      <h3 style="margin-bottom:1rem;">All Routes</h3>
+      <table class="data-table">
+        <thead><tr><th>#</th><th>Name</th><th>Type</th><th>Stops</th><th>Action</th></tr></thead>
+        <tbody id="routesTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="/js/main.js"></script>
+<script>
+function showTab(name, btn) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+async function checkAdmin() {
+  const res = await fetch('/api/auth/me');
+  const data = await res.json();
+  if (!data.loggedIn || !data.isAdmin) {
+    alert('Admin access required!');
+    window.location.href = '/login';
+  }
+}
+
+async function loadStops() {
+  const res = await fetch('/api/routes/stops');
+  const data = await res.json();
+  const tbody = document.getElementById('stopsTbody');
+  tbody.innerHTML = data.stops.map(s => `
+    <tr>
+      <td><strong>${s.name}</strong></td>
+      <td><span class="badge badge-micro">${s.zone}</span></td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteStop('${s._id}')">Delete</button></td>
+    </tr>
+  `).join('');
+}
+
+async function loadRoutes() {
+  const res = await fetch('/api/routes/all');
+  const data = await res.json();
+  const tbody = document.getElementById('routesTbody');
+  tbody.innerHTML = data.routes.map(r => `
+    <tr>
+      <td><strong>#${r.routeNumber}</strong></td>
+      <td>${r.name}</td>
+      <td><span class="badge badge-${r.busType}">${r.busType}</span></td>
+      <td style="font-size:0.82rem;">${r.stops.join(' → ')}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteRoute('${r._id}')">Delete</button></td>
+    </tr>
+  `).join('');
+}
+
+async function addStop() {
+  const name = document.getElementById('stopName').value.trim();
+  const zone = document.getElementById('stopZone').value;
+  if (!name) return alert('Enter stop name');
+
+  const res = await fetch('/api/admin/stop', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, zone })
+  });
+  const data = await res.json();
+  if (data.success) {
+    showMsg('stopMsg', 'Stop added successfully!', 'success');
+    document.getElementById('stopName').value = '';
+    loadStops();
+  } else {
+    showMsg('stopMsg', data.error);
+  }
+}
+
+async function deleteStop(id) {
+  if (!confirm('Delete this stop?')) return;
+  await fetch(`/api/admin/stop/${id}`, { method: 'DELETE' });
+  loadStops();
+}
+
+async function deleteRoute(id) {
+  if (!confirm('Delete this route?')) return;
+  await fetch(`/api/admin/route/${id}`, { method: 'DELETE' });
+  loadRoutes();
+}
+
+checkAdmin();
+loadStops();
+loadRoutes();
+</script>
+</body>
+</html>

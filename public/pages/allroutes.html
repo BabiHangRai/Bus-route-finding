@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>All Routes – KTM Bus Finder</title>
+  <link rel="stylesheet" href="/css/style.css"/>
+</head>
+<body>
+<nav>
+  <a class="nav-brand" href="/">🚌 KTM Routes</a>
+  <div class="nav-links">
+    <a href="/search">Find Route</a>
+    <a href="/all-routes" class="active">All Routes</a>
+    <a href="/dashboard" id="nav-dashboard" style="display:none">Dashboard</a>
+    <a href="/admin" id="nav-admin" style="display:none">Admin</a>
+    <a href="/login" id="nav-login">Login</a>
+    <a href="#" onclick="logout()" id="nav-logout" style="display:none">Logout</a>
+    <span id="nav-user"></span>
+  </div>
+</nav>
+
+<div class="container">
+  <h1 class="page-title">All Bus Routes</h1>
+  <p class="page-sub">Browse all available routes in the Kathmandu Valley network</p>
+
+  <div class="card" style="padding:1rem;">
+    <input type="text" id="searchFilter" placeholder="🔍 Search by route name or number..."
+      oninput="filterRoutes()"
+      style="width:100%;padding:10px 14px;border:2px solid var(--border);border-radius:10px;font-size:0.95rem;"/>
+  </div>
+
+  <div id="routeList"><p style="color:var(--muted);">Loading routes...</p></div>
+</div>
+
+<script src="/js/main.js"></script>
+<script>
+let allRoutes = [];
+
+async function loadRoutes() {
+  const res = await fetch('/api/routes/all');
+  const data = await res.json();
+  allRoutes = data.routes;
+  renderRoutes(allRoutes);
+}
+
+function filterRoutes() {
+  const q = document.getElementById('searchFilter').value.toLowerCase();
+  const filtered = allRoutes.filter(r =>
+    r.routeNumber.toLowerCase().includes(q) || r.name.toLowerCase().includes(q)
+  );
+  renderRoutes(filtered);
+}
+
+function renderRoutes(routes) {
+  const container = document.getElementById('routeList');
+  if (routes.length === 0) {
+    container.innerHTML = '<p style="color:var(--muted); padding:1rem;">No routes found.</p>';
+    return;
+  }
+  container.innerHTML = routes.map(r => `
+    <div class="card" style="margin-bottom:1rem;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.8rem;">
+        <div>
+          <span style="font-size:1.4rem; font-weight:800; color:var(--primary);">#${r.routeNumber}</span>
+          <span style="font-size:1.1rem; font-weight:600; margin-left:10px;">${r.name}</span>
+        </div>
+        <span class="badge badge-${r.busType}">${r.busType}</span>
+      </div>
+      <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+        ${r.stops.map((s, i) => `
+          <span style="background:#f1f5f9; padding:5px 12px; border-radius:20px; font-size:0.85rem;">${s}</span>
+          ${i < r.stops.length - 1 ? '<span style="color:var(--muted);">→</span>' : ''}
+        `).join('')}
+      </div>
+      <div style="margin-top:0.8rem; font-size:0.82rem; color:var(--muted);">
+        ${r.edges.length} segments •
+        Total: ${r.edges.reduce((sum, e) => sum + e.distanceKm, 0).toFixed(1)} km
+      </div>
+    </div>
+  `).join('');
+}
+
+loadRoutes();
+</script>
+</body>
+</html>

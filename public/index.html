@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>KTM Bus Route Finder</title>
+  <link rel="stylesheet" href="/css/style.css"/>
+</head>
+<body>
+
+<nav>
+  <a class="nav-brand" href="/">🚌 KTM Routes</a>
+  <div class="nav-links">
+    <a href="/search">Find Route</a>
+    <a href="/all-routes">All Routes</a>
+    <a href="/dashboard" id="nav-dashboard" style="display:none">Dashboard</a>
+    <a href="/admin" id="nav-admin" style="display:none">Admin</a>
+    <a href="/login" id="nav-login">Login</a>
+    <a href="#" onclick="logout()" id="nav-logout" style="display:none">Logout</a>
+    <span id="nav-user"></span>
+  </div>
+</nav>
+
+<section class="hero">
+  <h1>🚌 Kathmandu Bus Route Finder</h1>
+  <p>Find the fastest route between any two stops in the Kathmandu Valley using Dijkstra's algorithm</p>
+  <a href="/search" class="btn btn-primary" style="width:auto; display:inline-flex;">Find My Route →</a>
+</section>
+
+<div class="features">
+  <div class="feature-card">
+    <div class="icon">🗺️</div>
+    <h3>Shortest Path</h3>
+    <p>Dijkstra's algorithm finds the minimum distance route between any two stops instantly.</p>
+  </div>
+  <div class="feature-card">
+    <div class="icon">🔄</div>
+    <h3>Transfer Detection</h3>
+    <p>BFS automatically detects if you need to change buses and tells you exactly where.</p>
+  </div>
+  <div class="feature-card">
+    <div class="icon">💰</div>
+    <h3>Fare Estimation</h3>
+    <p>Get accurate fare estimates including student discounts and electric bus rates.</p>
+  </div>
+  <div class="feature-card">
+    <div class="icon">⭐</div>
+    <h3>Save Routes</h3>
+    <p>Log in to save your favourite routes for quick access anytime.</p>
+  </div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

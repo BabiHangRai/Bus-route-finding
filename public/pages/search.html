@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Find Route – KTM Bus Finder</title>
+  <link rel="stylesheet" href="/css/style.css"/>
+</head>
+<body>
+
+<nav>
+  <a class="nav-brand" href="/">🚌 KTM Routes</a>
+  <div class="nav-links">
+    <a href="/search" class="active">Find Route</a>
+    <a href="/all-routes">All Routes</a>
+    <a href="/dashboard" id="nav-dashboard" style="display:none">Dashboard</a>
+    <a href="/admin" id="nav-admin" style="display:none">Admin</a>
+    <a href="/login" id="nav-login">Login</a>
+    <a href="#" onclick="logout()" id="nav-logout" style="display:none">Logout</a>
+    <span id="nav-user"></span>
+  </div>
+</nav>
+
+<div class="container" style="max-width:700px;">
+  <div style="text-align:center; padding: 2rem 0 1rem;">
+    <h1 class="page-title">Find Your Route</h1>
+    <p class="page-sub">Select your starting stop and destination</p>
+  </div>
+
+  <div class="search-box">
+    <div class="form-group">
+      <label>🟢 From (Starting Stop)</label>
+      <select id="fromStop">
+        <option value="">-- Select Starting Stop --</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>🔴 To (Destination Stop)</label>
+      <select id="toStop">
+        <option value="">-- Select Destination Stop --</option>
+      </select>
+    </div>
+    <div class="checkbox-group">
+      <input type="checkbox" id="isStudent"/>
+      <label for="isStudent">🎓 I have a Student Card (50% discount)</label>
+    </div>
+    <button class="btn btn-primary" onclick="searchRoute()">🔍 Find Route</button>
+  </div>
+
+  <!-- Loader -->
+  <div class="loader" id="loader">
+    <div class="spinner"></div>
+    <p>Finding best route...</p>
+  </div>
+
+  <!-- Result -->
+  <div class="result-card" id="resultCard">
+    <div class="result-header">
+      <div>
+        <h2 id="routeTitle" style="font-size:1.3rem; font-weight:800;"></h2>
+        <span id="directBadge" class="badge"></span>
+      </div>
+      <button class="btn btn-secondary btn-sm" id="saveBtn" onclick="saveCurrentRoute()" style="display:none">⭐ Save Route</button>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-box">
+        <div class="value" id="distVal">–</div>
+        <div class="label">Distance (km)</div>
+      </div>
+      <div class="stat-box">
+        <div class="value" id="timeVal">–</div>
+        <div class="label">Est. Time (min)</div>
+      </div>
+      <div class="stat-box">
+        <div class="value" id="fareVal">–</div>
+        <div class="label">Total Fare (Rs.)</div>
+      </div>
+      <div class="stat-box">
+        <div class="value" id="stopsVal">–</div>
+        <div class="label">Stops</div>
+      </div>
+    </div>
+
+    <!-- Path -->
+    <h3 style="margin-bottom:0.7rem; color:var(--muted); font-size:0.9rem; text-transform:uppercase;">Route Path</h3>
+    <div class="path-display" id="pathDisplay"></div>
+
+    <!-- Bus Info -->
+    <div id="busInfo" style="margin-top:1.2rem;"></div>
+
+    <!-- Fare Breakdown -->
+    <h3 style="margin:1.5rem 0 0.7rem; color:var(--muted); font-size:0.9rem; text-transform:uppercase;">Fare Breakdown</h3>
+    <table class="fare-table">
+      <thead><tr><th>Component</th><th>Amount</th></tr></thead>
+      <tbody id="fareBody"></tbody>
+    </table>
+  </div>
+
+  <div id="msgBox" style="margin-top:1rem;"></div>
+</div>
+
+<script src="/js/main.js"></script>
+<script>
+let currentResult = null;
+
+async function loadStops() {
+  const res = await fetch('/api/routes/stops');
+  const data = await res.json();
+  const from = document.getElementById('fromStop');
+  const to = document.getElementById('toStop');
+  data.stops.forEach(s => {
+    from.innerHTML += `<option value="${s.name}">${s.name}</option>`;
+    to.innerHTML += `<option value="${s.name}">${s.name}</option>`;
+  });
+}
+
+async function searchRoute() {
+  const from = document.getElementById('fromStop').value;
+  const to = document.getElementById('toStop').value;
+  const isStudent = document.getElementById('isStudent').checked;
+
+  if (!from || !to) return alert('Please select both stops!');
+  if (from === to) return alert('Source and destination cannot be the same!');
+
+  document.getElementById('loader').style.display = 'block';
+  document.getElementById('resultCard').classList.remove('visible');
+
+  try {
+    const res = await fetch('/api/routes/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from, to, isStudent })
+    });
+    const data = await res.json();
+    document.getElementById('loader').style.display = 'none';
+
+    if (!data.success) {
+      document.getElementById('msgBox').innerHTML = `<div class="error-msg" style="display:block;">${data.error}</div>`;
+      return;
+    }
+
+    currentResult = data.result;
+    displayResult(data.result);
+  } catch (e) {
+    document.getElementById('loader').style.display = 'none';
+    alert('Server error. Make sure the server is running!');
+  }
+}
+
+function displayResult(r) {
+  document.getElementById('routeTitle').textContent = `${r.from} → ${r.to}`;
+
+  const badge = document.getElementById('directBadge');
+  badge.textContent = r.direct ? '✅ Direct Route' : '🔄 Transfer Required';
+  badge.className = 'badge ' + (r.direct ? 'badge-direct' : 'badge-transfer');
+
+  document.getElementById('distVal').textContent = r.totalDistance;
+  document.getElementById('timeVal').textContent = r.fare.estimatedMinutes;
+  document.getElementById('fareVal').textContent = 'Rs. ' + r.fare.totalFare;
+  document.getElementById('stopsVal').textContent = r.shortestPath.length;
+
+  // Path
+  const pathDiv = document.getElementById('pathDisplay');
+  pathDiv.innerHTML = '';
+  r.shortestPath.forEach((stop, i) => {
+    const span = document.createElement('span');
+    span.className = 'path-stop' + (stop === r.transferStop ? ' transfer' : '');
+    span.textContent = stop + (stop === r.transferStop ? ' 🔄' : '');
+    pathDiv.appendChild(span);
+    if (i < r.shortestPath.length - 1) {
+      const arr = document.createElement('span');
+      arr.className = 'path-arrow';
+      arr.textContent = '→';
+      pathDiv.appendChild(arr);
+    }
+  });
+
+  // Bus Info
+  const busDiv = document.getElementById('busInfo');
+  if (r.direct && r.sourceRoute) {
+    busDiv.innerHTML = `<div style="padding:1rem;background:#f0f9ff;border-radius:10px;">
+      🚌 Take <strong>Bus ${r.sourceRoute.number}</strong> (${r.sourceRoute.name})
+      <span class="badge badge-${r.sourceRoute.type}" style="margin-left:8px;">${r.sourceRoute.type}</span>
+    </div>`;
+  } else if (!r.direct && r.sourceRoute && r.targetRoute) {
+    busDiv.innerHTML = `<div style="padding:1rem;background:#fff7ed;border-radius:10px;line-height:2;">
+      🚌 Take <strong>Bus ${r.sourceRoute.number}</strong> (${r.sourceRoute.name}) → get off at <strong>${r.transferStop}</strong><br/>
+      🔄 Switch to <strong>Bus ${r.targetRoute.number}</strong> (${r.targetRoute.name}) → ride to <strong>${r.to}</strong>
+    </div>`;
+  } else {
+    busDiv.innerHTML = '';
+  }
+
+  // Fare table
+  const fareBody = document.getElementById('fareBody');
+  const f = r.fare;
+  fareBody.innerHTML = `
+    <tr><td>Base Fare (first 5 km)</td><td>Rs. ${f.baseFare}</td></tr>
+    <tr><td>Extra Distance Charge</td><td>Rs. ${f.extraFare}</td></tr>
+    ${f.transferFare > 0 ? `<tr><td>Transfer Boarding Fee</td><td>Rs. ${f.transferFare}</td></tr>` : ''}
+    ${f.discount > 0 ? `<tr><td>Student Discount (50%)</td><td style="color:var(--success)">- Rs. ${f.discount}</td></tr>` : ''}
+    <tr class="total"><td>Total Fare</td><td>Rs. ${f.totalFare}</td></tr>
+  `;
+
+  // Save button (only for logged in)
+  fetch('/api/auth/me').then(r => r.json()).then(d => {
+    document.getElementById('saveBtn').style.display = d.loggedIn ? 'inline-flex' : 'none';
+  });
+
+  document.getElementById('resultCard').classList.add('visible');
+  document.getElementById('msgBox').innerHTML = '';
+}
+
+async function saveCurrentRoute() {
+  if (!currentResult) return;
+  const res = await fetch('/api/user/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from: currentResult.from, to: currentResult.to })
+  });
+  const data = await res.json();
+  alert(data.success ? '⭐ Route saved to your dashboard!' : 'Please login to save routes.');
+}
+
+loadStops();
+</script>
+</body>
+</html>
